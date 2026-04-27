@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="calculator">
+    <h1>Calculator</h1>
+
+    <label for="num1">First Number</label>
+    <input type="number" id="num1" placeholder="Enter first number">
+
+    <label for="operation">Operation</label>
+    <select id="operation">
+      <option value="add">Add (+)</option>
+      <option value="subtract">Subtract (-)</option>
+      <option value="multiply">Multiply (*)</option>
+      <option value="divide">Divide (/)</option>
+      <option value="sqrt">Square Root</option>
+    </select>
+
+    <label for="num2" id="num2Label">Second Number</label>
+    <input type="number" id="num2" placeholder="Enter second number">
+
+    <button type="button" id="calculateButton">Calculate</button>
+
+    <div class="result" id="result">Result will appear here</div>
+    <p class="note">Square root uses only the first number.</p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
