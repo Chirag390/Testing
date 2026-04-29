@@ -1,0 +1,15 @@
+# Terraform state — contains sensitive AWS resource IDs and credentials
+terraform.tfstate
+terraform.tfstate.backup
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+
+# These are separate GitHub repos — tracked independently
+ecommerce-app/
+ecommerce-config/
+
+# OS
+.DS_Store
+Thumbs.db

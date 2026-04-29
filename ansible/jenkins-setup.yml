@@ -1,0 +1,131 @@
+---
+# Ansible playbook — configures the Jenkins EC2 created by Terraform
+# Run with:
+#   ansible-playbook -i "<jenkins-ip>," -u ec2-user \
+#     --private-key ~/.ssh/your-key.pem ansible/jenkins-setup.yml
+
+- name: Configure Jenkins Server
+  hosts: all
+  become: true   # sudo
+
+  vars:
+    java_version: java-17-amazon-corretto
+    maven_version: 3.9.5
+    maven_install_dir: /opt/maven
+    trivy_version: 0.48.0
+
+  tasks:
+
+    # ── Java 17 ───────────────────────────────────────────────────
+    - name: Install Java 17 (required by Jenkins and Maven)
+      yum:
+        name: "{{ java_version }}"
+        state: present
+
+    # ── Jenkins ───────────────────────────────────────────────────
+    - name: Add Jenkins repository
+      get_url:
+        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+
+    - name: Import Jenkins GPG key
+      rpm_key:
+        state: present
+        key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+    - name: Install Jenkins
+      yum:
+        name: jenkins
+        state: present
+
+    - name: Start and enable Jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: true
+
+    # ── Docker ────────────────────────────────────────────────────
+    - name: Install Docker
+      yum:
+        name: docker
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add jenkins user to docker group (so Jenkins can run docker commands)
+      user:
+        name: jenkins
+        groups: docker
+        append: true
+
+    # ── Maven ─────────────────────────────────────────────────────
+    - name: Download Maven
+      get_url:
+        url: "https://archive.apache.org/dist/maven/maven-3/{{ maven_version }}/binaries/apache-maven-{{ maven_version }}-bin.tar.gz"
+        dest: /tmp/maven.tar.gz
+
+    - name: Extract Maven
+      unarchive:
+        src: /tmp/maven.tar.gz
+        dest: "{{ maven_install_dir }}"
+        remote_src: true
+        creates: "{{ maven_install_dir }}/apache-maven-{{ maven_version }}"
+
+    - name: Create Maven symlink
+      file:
+        src: "{{ maven_install_dir }}/apache-maven-{{ maven_version }}/bin/mvn"
+        dest: /usr/local/bin/mvn
+        state: link
+
+    # ── AWS CLI ───────────────────────────────────────────────────
+    - name: Install AWS CLI v2
+      shell: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+        unzip -q /tmp/awscliv2.zip -d /tmp
+        /tmp/aws/install --update
+      args:
+        creates: /usr/local/bin/aws
+
+    # ── kubectl ───────────────────────────────────────────────────
+    - name: Install kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+
+    # ── Trivy ─────────────────────────────────────────────────────
+    - name: Add Trivy repository
+      shell: |
+        rpm --import https://aquasecurity.github.io/trivy-repo/rpm/public.key
+        cat > /etc/yum.repos.d/trivy.repo << 'EOF'
+        [trivy]
+        name=Trivy repository
+        baseurl=https://aquasecurity.github.io/trivy-repo/rpm/releases/$releasever/$basearch/
+        gpgcheck=1
+        enabled=1
+        gpgkey=https://aquasecurity.github.io/trivy-repo/rpm/public.key
+        EOF
+      args:
+        creates: /etc/yum.repos.d/trivy.repo
+
+    - name: Install Trivy
+      yum:
+        name: trivy
+        state: present
+
+    # ── Git ───────────────────────────────────────────────────────
+    - name: Install Git
+      yum:
+        name: git
+        state: present
+
+    - name: Print completion message
+      debug:
+        msg: |
+          Jenkins server is ready!
+          Access Jenkins at: http://{{ ansible_host }}:8080
+          Initial admin password: sudo cat /var/lib/jenkins/secrets/initialAdminPassword
