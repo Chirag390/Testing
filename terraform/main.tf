@@ -158,6 +158,8 @@ locals {
     "notification-service",
     "api-gateway",
     "frontend",
+    "ai-service",
+    "aiops-service",
   ]
 }
 
